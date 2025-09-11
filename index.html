@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulado Online - Concurso PM-SP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .progress-bar { transition: width 0.5s ease-in-out; }
+        .question-option { transition: all 0.2s ease-in-out; }
+        .selected-option { background-color: #e0e7ff; border-color: #6366f1; }
+        .correct-answer { background-color: #dcfce7; border-color: #22c55e; color: #166534; }
+        .incorrect-answer { background-color: #fee2e2; border-color: #ef4444; color: #991b1b; }
+        .dissertation-counter { transition: color 0.3s ease; }
+    </style>
+</head>
+<body class="bg-slate-100 flex items-center justify-center min-h-screen p-4">
+
+    <div id="main-container" class="w-full max-w-4xl">
+        
+        <!-- Firebase Auth Error Panel -->
+        <div id="auth-error-panel" class="hidden bg-white p-6 sm:p-8 rounded-lg shadow-xl border-t-4 border-red-500">
+             <!-- Error content will be injected by JavaScript -->
+        </div>
+
+        <!-- Start Screen -->
+        <div id="start-screen" class="bg-white p-6 sm:p-10 rounded-lg shadow-xl text-center">
+            <img src='https://i.postimg.cc/ZnD5QFdX/Escudo-PMESP.png' alt='Escudo PMESP' class='mx-auto h-24 w-auto mb-6'/>
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-800">Sistema de Avaliação Online</h1>
+            <p class="text-gray-500 mt-2">Processo Seletivo - Corregedoria Geral</p>
+            
+            <div class="text-left bg-slate-50 border border-slate-200 rounded-lg p-6 my-8 space-y-3 text-slate-700">
+                <h2 class="font-bold text-lg text-slate-800">ATENÇÃO: NORMAS DO PROCESSO AVALIATIVO</h2>
+                <ul class="list-disc list-inside space-y-2">
+                    <li>Esta avaliação é composta por <strong>14 questões objetivas</strong> e <strong>1 questão dissertativa</strong> de caráter eliminatório.</li>
+                    <li>A avaliação possui tempo limite de <strong>20 minutos</strong> e não poderá ser pausada após iniciada.</li>
+                    <li>A perda de foco da janela (trocar de aba, minimizar) resultará na <strong class="text-red-600">REPROVAÇÃO SUMÁRIA</strong> do candidato.</li>
+                    <li>As respostas submetidas são finais e não passíveis de alteração.</li>
+                    <li>Qualquer tentativa de burlar o sistema será registrada e acarretará na exclusão permanente do candidato deste e de futuros processos seletivos.</li>
+                </ul>
+            </div>
+
+            <form id="info-form" class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <input type="text" id="name" placeholder="Nome (Dentro do Jogo)" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" required>
+                    <input type="text" id="id" placeholder="ID (No Jogo)" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" required>
+                    <input type="text" id="discord" placeholder="Discord (Ex: usuario#1234)" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" required>
+                    <input type="text" id="phone" placeholder="Telefone (No Jogo)" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" required>
+                </div>
+                <div class="flex items-center justify-center pt-4">
+                    <input type="checkbox" id="terms" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" required>
+                    <label for="terms" class="ml-3 block text-sm text-gray-700">Declaro ciência e concordo com todas as normas do processo avaliativo.</label>
+                </div>
+                <button type="submit" id="start-button" class="w-full sm:w-1/2 mt-6 bg-indigo-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-indigo-700 transition-all duration-300 shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
+                    INICIAR AVALIAÇÃO
+                </button>
+            </form>
+        </div>
+
+        <!-- Quiz Screen -->
+        <div id="quiz-screen" class="hidden">
+            <div class="bg-white rounded-lg shadow-xl">
+                <!-- Header -->
+                <div class="p-5 border-b flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                        <img src='https://i.postimg.cc/ZnD5QFdX/Escudo-PMESP.png' alt='Escudo PMESP' class='h-10 w-auto'/>
+                        <span class="font-semibold text-gray-700">Avaliação em Andamento</span>
+                    </div>
+                    <div id="timer" class="flex items-center gap-2 font-bold text-indigo-600 text-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        <span>20:00</span>
+                    </div>
+                </div>
+                <!-- Progress Bar -->
+                <div class="w-full bg-gray-200 h-2.5">
+                    <div id="progress-bar" class="progress-bar bg-indigo-500 h-2.5" style="width: 0%"></div>
+                </div>
+                
+                <div id="quiz-content" class="p-6 sm:p-10">
+                    <!-- Question will be injected here -->
+                </div>
+                
+                <!-- Navigation -->
+                <div class="p-5 border-t flex justify-end">
+                    <button id="next-button" class="bg-indigo-600 text-white font-bold py-2 px-8 rounded-lg hover:bg-indigo-700 transition-all shadow-md">Próximo</button>
+                    <button id="finish-button" class="hidden bg-green-600 text-white font-bold py-2 px-8 rounded-lg hover:bg-green-700 transition-all shadow-md">Finalizar Avaliação</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Result Screen -->
+        <div id="result-screen" class="hidden bg-white p-6 sm:p-10 rounded-lg shadow-xl text-center">
+            <!-- Result content will be injected here -->
+        </div>
+
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Firebase Config ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyBtAwEqBovnb94tOaRv8fqvruofFm5Jl_Q",
+            authDomain: "avaliacao-pmsp-concurso.firebaseapp.com",
+            projectId: "avaliacao-pmsp-concurso",
+            storageBucket: "avaliacao-pmsp-concurso.firebasestorage.app",
+            messagingSenderId: "411785622302",
+            appId: "1:411785622302:web:0b0e90a796e62ab5148f0f"
+        };
+        // FIM DA CONFIGURAÇÃO
+
+        let db, auth;
+        
+        const MINIMUM_PASS_SCORE = 7; // 50% de 14 questões
+        const QUIZ_TIME_LIMIT = 20 * 60; // 20 minutes in seconds
+
+        const startScreen = document.getElementById('start-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        const resultScreen = document.getElementById('result-screen');
+        const authErrorPanel = document.getElementById('auth-error-panel');
+        const mainContainer = document.getElementById('main-container');
+
+        const infoForm = document.getElementById('info-form');
+        const termsCheckbox = document.getElementById('terms');
+        const startButton = document.getElementById('startButton');
+        
+        const timerElement = document.getElementById('timer').querySelector('span');
+        const progressBar = document.getElementById('progress-bar');
+        const quizContent = document.getElementById('quiz-content');
+        const nextButton = document.getElementById('next-button');
+        const finishButton = document.getElementById('finish-button');
+        
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let userAnswers = [];
+        let timerInterval;
+        let cheatAttempts = [];
+        let userInfo = {};
+
+        const questions = [
+            // Língua Portuguesa
+            { question: "Assinale a frase em que a palavra 'meio' está bem empregada:", options: ["Minha irmã está meia adoentada.", "Nós estamos meios cansados.", "É meio-dia e meio.", "A chuva chegou meio fraca.", "A bola chegou ao gol meia fraca."], answer: "A chuva chegou meio fraca." },
+            { question: "Assinale a frase em que a colocação do pronome pessoal oblíquo está correta.", options: ["Me deram o presente antes da data.", "Não deram-me o presente que pedi.", "O presente que foi-me dado é caro.", "Quem me deu esse presente?", "Quando viram-me em casa, ficaram tristes."], answer: "Quem me deu esse presente?" },
+            // Matemática
+            { question: "Três soldados pintam uma área de 45 m² de um muro em um determinado tempo. No mesmo tempo, e com a mesma eficiência, a área em m² que cinco soldados pintam é:", options: ["75", "60", "55", "45", "40"], answer: "75" },
+            { question: "Rafaela e Mariana ficaram de plantão juntas hoje, uma terça-feira. Rafaela fica de plantão de 4 em 4 dias e Mariana de 6 em 6 dias. Sem contar o dia de hoje, após 100 dias, o próximo dia em que Rafaela e Mariana ficarão de plantão juntas será:", options: ["segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira"], answer: "sexta-feira" },
+            // Conhecimentos Gerais
+            { question: "Qual medida foi estabelecida pela Constituição de 1891 no Brasil?", options: ["Criou o poder moderador.", "Permitiu o voto de analfabetos.", "Concentrou o poder no presidente, retirando autonomia dos estados.", "Estabeleceu a laicização do Estado, separando Estado e Igreja.", "Implementou o parlamentarismo."], answer: "Estabeleceu a laicização do Estado, separando Estado e Igreja." },
+            { question: "Comum na Região Metropolitana de São Paulo, o fenômeno meteorológico que aprisiona poluentes em baixas altitudes durante o inverno é denominado:", options: ["aquecimento global.", "efeito estufa.", "inversão térmica.", "chuva ácida.", "destruição da camada de ozônio."], answer: "inversão térmica." },
+            { question: "O vício em plataformas de aposta tem gerado preocupação. Com base nos estudos sobre o tema, qual opção reflete um aspecto relevante associado ao vício?", options: ["O vício em apostas envolve outras pessoas além do jogador, criando problemas sociais, familiares e financeiros.", "A solução para o vício está associada à força de vontade do indivíduo.", "O problema do vício é próprio de pessoas com muitos recursos financeiros.", "As plataformas online repetem a mesma situação de jogos tradicionais sem diferenças.", "O vício em apostas deve ser encarado como um problema com solução individualizada."], answer: "O vício em apostas envolve outras pessoas além do jogador, criando problemas sociais, familiares e financeiros." },
+            { question: "O redesenho das relações internacionais passa pelo BRICS, bloco integrado pelo Brasil. Quais são os dois países mais geopoliticamente relevantes do bloco?", options: ["Turquia e Israel.", "Brasil e África do Sul.", "Alemanha e Coreia do Sul.", "Arábia Saudita e Índia.", "China e Rússia."], answer: "China e Rússia." },
+            // Informática
+            { question: "No MS-Windows 10, o atalho Ctrl + Shift + N é utilizado para qual finalidade?", options: ["Fechar a pasta atual.", "Criar uma nova pasta.", "Abrir uma nova janela.", "Imprimir arquivos da pasta.", "Organizar arquivos da pasta."], answer: "Criar uma nova pasta." },
+            { question: "No MS Word 2016, a Guia 'Revisão' contém, como padrão, todos os botões a seguir, EXCETO um. Assinale-o:", options: ["Controlar Alterações", "Novo Comentário", "Inserir Nota de Rodapé", "Contagem de Palavras", "Ortografia e Gramática"], answer: "Inserir Nota de Rodapé" },
+            // Administração Pública
+            { question: "Um grupo de policiais militares foi convidado a formar uma associação civil para patrulhamento voluntário. Segundo a Constituição da República, tal associação é:", options: ["Vedada, por ter caráter paramilitar.", "Vedada, salvo com autorização dos comandantes.", "Vedada, pois a prisão em flagrante é exclusiva do militar em serviço.", "Permitida, pois o direito de associação é fundamental.", "Permitida, desde que atuem fora do horário de serviço."], answer: "Vedada, por ter caráter paramilitar." },
+            { question: "Um policial militar médico passou em concurso para outro cargo de médico em um município. Segundo a Constituição, a acumulação de cargos é:", options: ["Possível, se houver compatibilidade de horários, com prevalência da atividade militar.", "Impossível, pois só seria viável no mesmo ente federativo.", "Vedada, pois o novo cargo não é da área da educação.", "Vedada, pois policiais militares não podem acumular cargos.", "Possível, desde que a carga horária somada não ultrapasse 40 horas semanais."], answer: "Possível, se houver compatibilidade de horários, com prevalência da atividade militar." },
+            { question: "Um policial militar, em serviço, atropela e mata um pedestre. À luz da Constituição, a responsabilidade pela reparação de danos é:", options: ["Do policial e do Estado, apenas com demonstração de culpa do policial.", "Somente do Estado, independentemente da demonstração de culpa do policial.", "Do policial e do Estado, ambos com responsabilidade objetiva.", "Condicionada à demonstração de que a vítima não teve culpa.", "Inexistente, pois o policial cumpria um dever legal."], answer: "Somente do Estado, independentemente da demonstração de culpa do policial." },
+            { question: "A quem compete processar e julgar um soldado da PM de São Paulo pela prática de crime militar contra civil, segundo a Constituição do Estado?", options: ["Ao Conselho de Justificação.", "Ao Tribunal de Justiça Militar.", "A um juiz de direito do juízo militar.", "A um juiz de direito do juízo comum.", "Ao Conselho de Justiça, sob presidência do juiz de direito."], answer: "A um juiz de direito do juízo militar." },
+        ];
+
+        const dissertationQuestion = {
+            type: 'dissertation',
+            question: "Com base nos textos apresentados em provas de concursos e em seus próprios conhecimentos, escreva um texto dissertativo-argumentativo sobre o tema: <strong>As apostas online devem ser proibidas no Brasil?</strong>",
+            instructions: "Seu texto deve ter no mínimo 500 caracteres."
+        };
+
+        // --- Event Listeners and Logic ---
+        termsCheckbox.addEventListener('change', () => {
+            startButton.disabled = !termsCheckbox.checked;
+        });
+
+        infoForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            userInfo = {
+                name: document.getElementById('name').value,
+                id: document.getElementById('id').value,
+                discord: document.getElementById('discord').value,
+                phone: document.getElementById('phone').value,
+            };
+            startQuiz();
+        });
+
+        function startQuiz() {
+            startScreen.classList.add('hidden');
+            quizScreen.classList.remove('hidden');
+            document.addEventListener('contextmenu', preventDefaultAction);
+            document.addEventListener('copy', preventDefaultAction);
+            document.addEventListener('paste', preventDefaultAction);
+            window.addEventListener('blur', recordCheatAttempt);
+            
+            startTimer();
+            displayQuestion();
+        }
+
+        function preventDefaultAction(e) {
+            e.preventDefault();
+            recordCheatAttempt(`Tentativa de ${e.type === 'contextmenu' ? 'clique direito' : e.type}`);
+        }
+
+        function recordCheatAttempt(reason) {
+            const timestamp = new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'medium' });
+            cheatAttempts.push({ reason: reason || 'Mudança de aba ou janela', timestamp });
+        }
+
+        function startTimer() {
+            let timeLeft = QUIZ_TIME_LIMIT;
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                const minutes = Math.floor(timeLeft / 60);
+                const seconds = timeLeft % 60;
+                timerElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    finishQuiz();
+                }
+            }, 1000);
+        }
+
+        function displayQuestion() {
+            progressBar.style.width = `${(currentQuestionIndex / (questions.length + 1)) * 100}%`;
+            
+            if (currentQuestionIndex < questions.length) {
+                const q = questions[currentQuestionIndex];
+                quizContent.innerHTML = `
+                    <h2 class="text-2xl font-bold mb-2 text-gray-800">Questão ${currentQuestionIndex + 1}</h2>
+                    <p class="text-lg mb-8 text-gray-600">${q.question}</p>
+                    <div class="space-y-4">
+                        ${q.options.map((option, index) => `
+                            <div class="question-option border-2 border-gray-300 p-4 rounded-lg cursor-pointer hover:bg-gray-100" data-option="${option}">
+                                <span class="font-semibold">${String.fromCharCode(65 + index)}.</span> ${option}
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                document.querySelectorAll('.question-option').forEach(el => {
+                    el.addEventListener('click', () => {
+                        document.querySelectorAll('.question-option').forEach(opt => opt.classList.remove('selected-option'));
+                        el.classList.add('selected-option');
+                    });
+                });
+            } else {
+                // Dissertation Question
+                 quizContent.innerHTML = `
+                    <h2 class="text-2xl font-bold mb-2 text-gray-800">Questão Dissertativa</h2>
+                    <p class="text-lg mb-4 text-gray-600">${dissertationQuestion.question}</p>
+                    <p class="text-sm text-gray-500 mb-6">${dissertationQuestion.instructions}</p>
+                    <textarea id="dissertation" class="w-full h-64 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" placeholder="Digite sua resposta aqui..."></textarea>
+                    <div class="text-right mt-2 text-sm font-medium">
+                        <span id="char-counter" class="dissertation-counter text-gray-500">0</span> / 500 caracteres (mínimo)
+                    </div>
+                `;
+                 nextButton.classList.add('hidden');
+                 finishButton.classList.remove('hidden');
+                 const textarea = document.getElementById('dissertation');
+                 const counter = document.getElementById('char-counter');
+                 textarea.addEventListener('input', () => {
+                     const count = textarea.value.length;
+                     counter.textContent = count;
+                     counter.classList.toggle('text-red-600', count < 500);
+                     counter.classList.toggle('text-green-600', count >= 500);
+                 });
+            }
+        }
+
+        nextButton.addEventListener('click', () => {
+            const selectedOption = document.querySelector('.selected-option');
+            if (!selectedOption) {
+                alert('Por favor, selecione uma resposta.');
+                return;
+            }
+            const answer = selectedOption.dataset.option;
+            userAnswers[currentQuestionIndex] = answer;
+            if (answer === questions[currentQuestionIndex].answer) {
+                score++;
+            }
+            currentQuestionIndex++;
+            displayQuestion();
+        });
+
+        finishButton.addEventListener('click', () => {
+             const dissertationText = document.getElementById('dissertation').value;
+             if (dissertationText.length < 500) {
+                 alert('Sua resposta dissertativa deve ter no mínimo 500 caracteres.');
+                 return;
+             }
+             userAnswers[currentQuestionIndex] = dissertationText;
+             clearInterval(timerInterval);
+             finishQuiz();
+        });
+
+        function finishQuiz() {
+            window.removeEventListener('blur', recordCheatAttempt);
+            document.removeEventListener('contextmenu', preventDefaultAction);
+            document.removeEventListener('copy', preventDefaultAction);
+            document.removeEventListener('paste', preventDefaultAction);
+            
+            showResults();
+            saveResultsToFirestore();
+        }
+
+        function showResults() {
+            quizScreen.classList.add('hidden');
+            resultScreen.classList.remove('hidden');
+
+            let resultHTML = '';
+            const isDisqualifiedByCheating = cheatAttempts.length > 0;
+            const isApprovedByScore = score >= MINIMUM_PASS_SCORE;
+            const isApproved = !isDisqualifiedByCheating && isApprovedByScore;
+
+            if (isDisqualifiedByCheating) {
+                resultHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 mx-auto text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                    <h2 class="text-4xl font-extrabold text-red-600 mt-6">REPROVADO</h2>
+                    <p class="text-lg text-gray-600 mt-4">Violações das normas de conduta foram detectadas durante a sua avaliação.</p>
+                    <p class="text-gray-500 mt-2">A sua candidatura foi desclassificada deste processo seletivo.</p>
+                `;
+            } else {
+                const statusClass = isApproved ? 'text-green-600' : 'text-red-600';
+                const statusText = isApproved ? 'APROVADO' : 'REPROVADO';
+                const statusIcon = isApproved ? 
+                    `<svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 mx-auto text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>` :
+                    `<svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 mx-auto text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
+                
+                resultHTML = `
+                    ${statusIcon}
+                    <h2 class="text-4xl font-extrabold ${statusClass} mt-6">${statusText}</h2>
+                    <p class="text-lg text-gray-600 mt-4">Confira o seu desempenho na prova de múltipla escolha:</p>
+                    <div class="my-6 bg-slate-100 inline-block p-6 rounded-lg">
+                        <span class="text-6xl font-bold ${statusClass}">${score}</span>
+                        <span class="text-2xl text-gray-500"> / ${questions.length}</span>
+                        <p class="font-semibold text-gray-700 mt-1">acertos</p>
+                    </div>
+                    <p class="text-gray-500">A sua prova foi enviada com sucesso para análise.</p>
+                `;
+            }
+             resultScreen.innerHTML = resultHTML;
+        }
+
+        async function saveResultsToFirestore() {
+            try {
+                await addDoc(collection(db, "pmsp-submissions"), {
+                    userInfo: userInfo,
+                    score: score,
+                    totalQuestions: questions.length,
+                    dissertation: userAnswers[questions.length] || '', // Salva a dissertação
+                    cheatAttempts: cheatAttempts,
+                    submittedAt: new Date()
+                });
+            } catch (error) {
+                console.error("Erro ao salvar os resultados no Firestore: ", error);
+            }
+        }
+        
+        async function initializeFirebase() {
+            try {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                await signInAnonymously(auth);
+            } catch (error) {
+                console.error("Falha na inicialização do Firebase:", error);
+                startScreen.classList.add('hidden');
+                authErrorPanel.classList.remove('hidden');
+                let userMessage = `
+                    <h2 class="text-2xl font-bold text-red-700 mb-4">Erro Crítico de Configuração</h2>
+                    <p class="text-gray-600">Não foi possível conectar ao sistema de avaliação.</p>
+                `;
+                if (error.code === 'auth/configuration-not-found') {
+                    userMessage += `
+                        <div class="mt-6 bg-red-50 border-l-4 border-red-400 p-4">
+                            <p class="font-bold text-red-800">Ação Necessária:</p>
+                            <p class="text-red-700">O método de login anônimo não está ativado. Por favor, vá ao seu Console do Firebase &rarr; Authentication &rarr; Sign-in method e ative o provedor 'Anônimo'.</p>
+                        </div>
+                        <button onclick="window.location.reload()" class="mt-6 w-full bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 transition-all">Recarregar Página</button>
+                    `;
+                }
+                authErrorPanel.innerHTML = userMessage;
+            }
+        }
+
+        initializeFirebase();
+
+    </script>
+</body>
+</html>
+
